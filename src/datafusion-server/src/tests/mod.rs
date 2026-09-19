@@ -12,6 +12,7 @@ use liquid_cache::{
 use uuid::Uuid;
 
 mod cases;
+mod lineage;
 
 use crate::{LiquidCacheService, LiquidCacheServiceInner};
 

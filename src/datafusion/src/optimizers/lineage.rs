@@ -368,8 +368,8 @@ impl HintAnalyzer {
             self.record(&ru);
         }
 
-        // Only equi-joins whose output is a straight concatenation of the two
-        // inputs, and that carry no residual filter, pass lineage through. Any
+        // Equi-joins without a residual filter pass lineage through, applying
+        // their output projection to the concatenated input columns. Any
         // other shape (semi/anti/mark joins, a residual filter we don't map)
         // is treated opaquely.
         let passthrough = join.filter().is_none()
@@ -381,6 +381,9 @@ impl HintAnalyzer {
         if passthrough {
             let mut out = left;
             out.extend(right);
+            if let Some(projection) = &join.projection {
+                out = projection.iter().map(|&index| out[index].clone()).collect();
+            }
             if out.len() == plan.schema().fields().len() {
                 return out;
             }

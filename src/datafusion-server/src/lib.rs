@@ -33,7 +33,6 @@ use datafusion::{
     execution::{SessionStateBuilder, object_store::ObjectStoreUrl},
     prelude::{SessionConfig, SessionContext},
 };
-use datafusion_proto::bytes::physical_plan_from_bytes;
 use fastrace::prelude::SpanContext;
 use futures::{Stream, TryStreamExt};
 use liquid_cache::cache::CacheExpression;
@@ -52,6 +51,7 @@ mod utils;
 use utils::FinalStream;
 mod admin_server;
 mod errors;
+mod plan_codec;
 pub use admin_server::{models::*, run_admin_server};
 pub use errors::{
     LiquidCacheErrorExt, LiquidCacheResult, anyhow_to_status, df_error_to_status_with_trace,
@@ -167,6 +167,8 @@ impl LiquidCacheService {
         let mut session_config = SessionConfig::from_env()?;
         let options_mut = session_config.options_mut();
         options_mut.execution.parquet.pushdown_filters = true;
+        options_mut.execution.parquet.skip_arrow_metadata = false;
+        options_mut.execution.parquet.skip_metadata = false;
         options_mut.execution.batch_size = ConfigNonZeroUsize::try_new(8192 * 2)?;
 
         {
@@ -186,6 +188,7 @@ impl LiquidCacheService {
             .build();
 
         let ctx = SessionContext::new_with_state(state);
+        liquid_cache_datafusion::register_variant_functions(&ctx);
         Ok(ctx)
     }
 
@@ -250,7 +253,7 @@ impl LiquidCacheService {
                 Ok(Response::new(Box::pin(output)))
             }
             LiquidCacheActions::RegisterPlan(cmd) => {
-                let plan = physical_plan_from_bytes(&cmd.plan, &self.inner.get_ctx().task_ctx())?;
+                let plan = plan_codec::decode_plan(&cmd.plan, &self.inner.get_ctx().task_ctx())?;
                 let handle = Uuid::from_bytes_ref(cmd.handle.as_ref().try_into()?);
                 let mut lineages = ColumnLineages::default();
                 for hint in &cmd.lineages {

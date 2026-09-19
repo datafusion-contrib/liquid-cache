@@ -7,7 +7,6 @@ mod tests;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use datafusion::logical_expr::ScalarUDF;
 use datafusion::prelude::{SessionConfig, SessionContext};
 use datafusion::{common::config::ConfigNonZeroUsize, error::Result};
 use liquid_cache::cache::{AlwaysHydrate, HydrationPolicy, default_max_memory_bytes};
@@ -15,7 +14,7 @@ use liquid_cache::cache::{EvictionPolicy, TranscodeEvict};
 use liquid_cache::cache_policies::{CachePolicy, LiquidPolicy};
 use liquid_cache_datafusion::optimizers::LocalModeOptimizer;
 use liquid_cache_datafusion::{
-    LiquidCacheParquet, LiquidCacheParquetRef, VariantGetUdf, VariantPretty, VariantToJsonUdf,
+    LiquidCacheParquet, LiquidCacheParquetRef, register_variant_functions,
 };
 
 pub use liquid_cache as storage;
@@ -207,9 +206,7 @@ impl LiquidCacheLocalBuilder {
             .build();
 
         let ctx = SessionContext::new_with_state(state);
-        ctx.register_udf(ScalarUDF::new_from_impl(VariantGetUdf::default()));
-        ctx.register_udf(ScalarUDF::new_from_impl(VariantPretty::default()));
-        ctx.register_udf(ScalarUDF::new_from_impl(VariantToJsonUdf::default()));
+        register_variant_functions(&ctx);
         Ok((ctx, cache_ref))
     }
 }

@@ -4558,6 +4558,8 @@ dependencies = [
  "liquid-cache",
  "liquid-cache-common",
  "liquid-cache-datafusion",
+ "liquid-cache-datafusion-client",
+ "liquid-cache-datafusion-local",
  "log",
  "object_store",
  "parquet",

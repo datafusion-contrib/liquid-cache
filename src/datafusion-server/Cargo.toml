@@ -44,3 +44,5 @@ hdrhistogram = "7.5.4"
 [dev-dependencies]
 insta = { workspace = true }
 parquet = { workspace = true }
+liquid-cache-datafusion-client = { workspace = true }
+liquid-cache-datafusion-local = { workspace = true }

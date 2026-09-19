@@ -291,7 +291,9 @@ impl LiquidCache {
     ) -> Result<CacheEntry, CacheFull> {
         match &batch {
             batch @ CacheEntry::MemoryArrow(_) => {
-                let outcome = self.eviction_policy.evict(batch, None);
+                let outcome = self
+                    .eviction_policy
+                    .evict(batch, self.metadata.lineage(&entry_id).as_deref());
                 let EvictionOutcome::Replace {
                     entry: new_batch,
                     bytes_to_write,

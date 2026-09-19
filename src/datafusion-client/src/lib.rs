@@ -91,7 +91,8 @@ impl LiquidCacheClientBuilder {
             .options_mut()
             .execution
             .parquet
-            .binary_as_string = true;
+            .skip_arrow_metadata = false;
+        session_config.options_mut().execution.parquet.skip_metadata = false;
         session_config.options_mut().execution.batch_size = ConfigNonZeroUsize::try_new(8192 * 2)?;
         // Dynamic filters (e.g. a hash join's runtime build-side filter) are pushed
         // into scan predicates by DataFusion. In distributed mode those scans are
@@ -126,7 +127,9 @@ impl LiquidCacheClientBuilder {
                 self.object_stores.clone(),
             )))
             .build();
-        Ok(SessionContext::new_with_state(session_state))
+        let ctx = SessionContext::new_with_state(session_state);
+        liquid_cache_datafusion::register_variant_functions(&ctx);
+        Ok(ctx)
     }
 }
 
