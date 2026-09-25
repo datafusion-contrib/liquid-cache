@@ -19,6 +19,7 @@ use datafusion::{
 };
 
 use crate::LiquidCacheLocalBuilder;
+mod constant_conjunct;
 mod date_optimizer;
 mod filter_limit;
 mod nested_filter;

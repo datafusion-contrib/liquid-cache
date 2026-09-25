@@ -275,10 +275,11 @@ impl FilterCandidateBuilder {
             return Ok(None);
         };
 
-        if required_indices_into_file_schema.is_empty() {
-            return Ok(None);
-        }
-
+        // A conjunct that references no column - a literal `NULL` or `false` left
+        // behind by expression simplification, for instance - is still a conjunct.
+        // Dropping it here widens the filter, because by the time this runs
+        // DataFusion has removed the `FilterExec` on the assumption the predicate
+        // was fully pushed down, so the scan is the only place it is applied.
         let projected_file_schema = Arc::new(
             self.file_schema
                 .project(&required_indices_into_file_schema)?,

@@ -5,7 +5,7 @@ use crate::io::ParquetCacheMetadata;
 use crate::reader::{LiquidPredicate, extract_multi_column_or};
 use crate::sync::{Mutex, RwLock};
 use ahash::AHashMap;
-use arrow::array::{BooleanArray, RecordBatch};
+use arrow::array::{BooleanArray, RecordBatch, RecordBatchOptions};
 use arrow::buffer::BooleanBuffer;
 use arrow_schema::{ArrowError, Field, Schema, SchemaRef};
 use datafusion::common::tree_node::{Transformed, TreeNode};
@@ -242,6 +242,17 @@ impl CachedRowGroup {
                 }
             }
         }
+        // A conjunct that reads no column still has to be evaluated, over a batch
+        // that carries only the row count the selection implies.
+        if column_ids.is_empty() {
+            let options =
+                RecordBatchOptions::new().with_row_count(Some(selection.count_set_bits()));
+            let record_batch =
+                RecordBatch::try_new_with_options(Arc::new(Schema::empty()), Vec::new(), &options)
+                    .ok()?;
+            return Some(predicate.evaluate(record_batch));
+        }
+
         // Otherwise, we need to first convert the data into arrow arrays.
         let mut arrays = Vec::new();
         let mut fields = Vec::new();
