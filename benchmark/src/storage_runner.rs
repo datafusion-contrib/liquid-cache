@@ -16,7 +16,8 @@ use datafusion::scalar::ScalarValue;
 use liquid_cache_common::IoMode;
 use liquid_cache_parquet::{SimpleIoContext, WorkStealingUringRuntime};
 use liquid_cache_storage::cache::{
-    EntryID, LiquidCache, LiquidCacheBuilder, LiquidPolicy, NoHydration, TranscodeSqueezeEvict,
+    CacheExpression, EntryID, LiquidCache, LiquidCacheBuilder, LiquidPolicy, NoHydration,
+    TranscodeSqueezeEvict,
 };
 use logforth::filter::EnvFilter;
 use parquet::arrow::{ProjectionMask, arrow_reader::ParquetRecordBatchReaderBuilder};
@@ -599,6 +600,18 @@ async fn load_and_insert(
     query: &FilterQuery,
 ) -> (Vec<EntryID>, Vec<usize>) {
     let columns_to_load = query.columns_to_load();
+    let needs_substring_fingerprints = query.predicates.iter().any(|predicate| {
+        predicate
+            .as_any()
+            .downcast_ref::<BinaryExpr>()
+            .is_some_and(|expr| {
+                matches!(
+                    expr.op(),
+                    Operator::LikeMatch
+                        | Operator::NotLikeMatch
+                )
+            })
+    });
     assert!(
         !columns_to_load.is_empty(),
         "query must have filter_columns or projection_columns"
@@ -639,7 +652,14 @@ async fn load_and_insert(
         for col_idx in 0..num_cols {
             let entry_id = EntryID::from(batch_idx * num_cols + col_idx);
             let array = batch.column(col_idx).clone();
-            storage.insert(entry_id, array).await;
+            if needs_substring_fingerprints {
+                storage
+                    .insert(entry_id, array)
+                    .with_squeeze_hint(Arc::new(CacheExpression::SubstringSearch))
+                    .await;
+            } else {
+                storage.insert(entry_id, array).await;
+            }
             entry_ids.push(entry_id);
             batch_lengths.push(nrows);
         }
