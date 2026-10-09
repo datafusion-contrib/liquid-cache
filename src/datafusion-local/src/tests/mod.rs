@@ -24,6 +24,7 @@ mod date_optimizer;
 mod filter_limit;
 mod nested_filter;
 mod variants;
+mod virtual_column;
 
 const TEST_FILE: &str = "../../examples/nano_hits.parquet";
 const OPENOBSERVE_FILE: &str = "../../dev/test_parquet/openobserve.parquet";
